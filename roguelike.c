@@ -85,7 +85,7 @@ void draw_frame(Hero* player, char input, int* is_running) {
             player->y -= 1; 
             break;
         case 'q':
-            is_running = 0;
+            *is_running = 0;
             break;
     }
 }
