@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ncurses.h>
+#include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
 #define DEFAULT_HEALTH 10000
@@ -25,7 +26,7 @@ int main() {
 
     int is_running = 1;
     Hero* player = initialize_player();
-    while ( is_running ) {
+    while ( is_running ) {        // timeout for input could be also implemented using VMIN
         char input = getchar();
         draw_frame(player, input);
     }
@@ -49,16 +50,18 @@ void draw_frame(Hero* player, char input) {
 
 // TERMIOS
 void disable_raw_mode() {
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios);
 }
 
 void enable_raw_mode() {
-  tcgetattr(STDIN_FILENO, &original_termios);
+    tcgetattr(STDIN_FILENO, &original_termios);
 
-  struct termios raw = original_termios;
-  atexit(disable_raw_mode);
+    struct termios raw = original_termios;
+    atexit(disable_raw_mode);
 
-  raw.c_lflag &= ~(ECHO | ICANON);
+    raw.c_lflag &= ~(ECHO | ICANON);
+    raw.c_cc[VMIN] = 0;
 
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
