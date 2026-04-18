@@ -28,7 +28,8 @@ int main() {
     Hero* player = initialize_player();
     while ( is_running ) {
         // timeout for input could be also implemented using VMIN
-        char input = getchar();
+        char input = 0;
+        read(STDIN_FILENO, &input, 1);
         draw_frame(player, input, &is_running);
     }
 }
@@ -69,6 +70,9 @@ void moveTo(int row, int col) {
 
 void draw_frame(Hero* player, char input, int* is_running) {
     printf("\x1b[2J");
+    moveTo(1, 1);
+    printf("q - exit");
+
     moveTo(player->y, player->x);
     printf("@");
     switch (input) {
@@ -79,15 +83,17 @@ void draw_frame(Hero* player, char input, int* is_running) {
             player->x += 1; 
             break;
         case 'w':
-            player->y += 1; 
+            player->y -= 1; 
             break;
         case 's':
-            player->y -= 1; 
+            player->y += 1; 
             break;
         case 'q':
             *is_running = 0;
             break;
     }
+
+    fflush(stdout);
 }
 
 // TERMIOS
@@ -102,7 +108,12 @@ void enable_raw_mode() {
     atexit(disable_raw_mode);
 
     raw.c_lflag &= ~(ECHO | ICANON);
-    raw.c_cc[VMIN] = 1;
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;
 
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
