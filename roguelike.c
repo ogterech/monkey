@@ -98,6 +98,7 @@ void draw_frame(Hero* player, char input, int* is_running) {
 
 // TERMIOS
 void disable_raw_mode() {
+    printf("\x1b[?25h"); // enable cursor
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios);
 }
 
@@ -114,6 +115,7 @@ void enable_raw_mode() {
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 1;
+    printf("\x1b[?25l"); // disable cursor
 
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
