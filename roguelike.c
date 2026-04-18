@@ -11,10 +11,11 @@ struct termios original_termios;
 typedef struct {
     char name[64];
     int x, y, max_hp, hp, damage;
-} Hero;
+} Creature;
 
-Hero* initialize_player();
-void draw_frame(Hero* player, char input, int* is_running);
+
+Creature* initialize_player();
+void draw_frame(Creature* player, char input, int* is_running);
 // TERMIOS
 void disable_raw_mode();
 void enable_raw_mode();
@@ -25,7 +26,7 @@ int main() {
     enable_raw_mode();
 
     int is_running = 1;
-    Hero* player = initialize_player();
+    Creature* player = initialize_player();
     while ( is_running ) {
         // timeout for input could be also implemented using VMIN
         char input = 0;
@@ -35,8 +36,8 @@ int main() {
 }
 
 
-Hero* initialize_player() {
-    Hero* player = malloc(sizeof(Hero));
+Creature* initialize_player() {
+    Creature* player = malloc(sizeof(Creature));
     player->max_hp = DEFAULT_HEALTH;
     player->hp = DEFAULT_HEALTH;
     player->x = 30;
@@ -68,7 +69,7 @@ void moveTo(int row, int col) {
     printf("\x1b[%d;%df", row, col);
 }
 
-void draw_frame(Hero* player, char input, int* is_running) {
+void draw_frame(Creature* player, char input, int* is_running) {
     printf("\x1b[2J");
     moveTo(1, 1);
     printf("q - exit");
