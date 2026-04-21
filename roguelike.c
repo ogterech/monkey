@@ -26,6 +26,7 @@ void disable_raw_mode();
 void enable_raw_mode();
 void init_game();
 int get_winsize(int *rows, int *cols);
+void draw_line(int rows, int p);
 
 int main(int argc, char **argv) {
   if (argc > 1 && strcmp("debug", argv[1]) == 0) {
@@ -80,6 +81,14 @@ void draw_frame(Creature *player, char input, int *is_running) {
     printf("ROWS %d\n\r", config.rows);
     printf("COLS %d\n\r", config.cols);
   }
+  draw_line(0, 10);
+  draw_line(1, 10);
+
+  draw_line(0, 20);
+  draw_line(1, 20);
+
+  draw_line(0, 40);
+  draw_line(1, 40);
 
   moveTo(player->y, player->x);
   printf("@");
@@ -136,6 +145,22 @@ int get_winsize(int *rows, int *cols) {
   *rows = ws.ws_row;
   *cols = ws.ws_col;
   return 0;
+}
+
+// if rows == 0 then we vertical line
+void draw_line(int rows, int p) {
+  // vertical
+  if (rows == 0) {
+    for (int i = 1; i < config.rows - 1; i++) {
+      moveTo(i, p);
+      printf("|");
+    }
+  } else { // horizontal
+    for (int i = 1; i < config.cols - 1; i++) {
+      moveTo(p, i);
+      printf("–");
+    }
+  }
 }
 
 void init_game() {
