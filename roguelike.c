@@ -1,9 +1,7 @@
-#include <asm-generic/ioctls.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
 #define DEFAULT_HEALTH 10000
