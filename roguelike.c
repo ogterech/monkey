@@ -1,6 +1,7 @@
 #include <asm-generic/ioctls.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <termios.h>
@@ -18,6 +19,7 @@ struct terminalConfig {
 };
 
 struct terminalConfig config;
+int debug = 0;
 
 
 Creature* initialize_player();
@@ -30,7 +32,10 @@ int get_winsize(int *rows, int *cols);
 
 
 
-int main() {
+int main(int argc, char **argv) {
+    if(argc>1 && strcmp("debug", argv[1])==0) {
+        debug=1;
+    }
     init_game();
 
     int is_running = 1;
@@ -81,8 +86,10 @@ void draw_frame(Creature* player, char input, int* is_running) {
     printf("\x1b[2J");
     moveTo(1, 1);
     printf("q - exit\n\r");
-    printf("ROWS %d\n\r", config.rows);
-    printf("COLS %d\n\r", config.cols);
+    if(debug) {
+        printf("ROWS %d\n\r", config.rows);
+        printf("COLS %d\n\r", config.cols);
+    }
 
     moveTo(player->y, player->x);
     printf("@");
