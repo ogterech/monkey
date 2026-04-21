@@ -1,5 +1,5 @@
 bin/roguelike: roguelike.c bin
-	gcc roguelike.c -o bin/roguelike
+	$(CC) roguelike.c -o bin/roguelike -Wall -Wextra -pedantic -std=c99
 
 bin: 
 	mkdir -p ./bin

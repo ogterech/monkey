@@ -1,17 +1,23 @@
+#include <asm-generic/ioctls.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <ncurses.h>
+#include <sys/ioctl.h>
 #include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
 #define DEFAULT_HEALTH 10000
 
-struct termios original_termios;
-
 typedef struct {
     char name[64];
     int x, y, max_hp, hp, damage;
 } Creature;
+
+struct terminalConfig {
+    int rows, cols;
+    struct termios original_termios;
+};
+
+struct terminalConfig config;
 
 
 Creature* initialize_player();
@@ -19,11 +25,13 @@ void draw_frame(Creature* player, char input, int* is_running);
 // TERMIOS
 void disable_raw_mode();
 void enable_raw_mode();
+void init_game();
+int get_winsize(int *rows, int *cols);
 
 
 
 int main() {
-    enable_raw_mode();
+    init_game();
 
     int is_running = 1;
     Creature* player = initialize_player();
@@ -72,7 +80,9 @@ void moveTo(int row, int col) {
 void draw_frame(Creature* player, char input, int* is_running) {
     printf("\x1b[2J");
     moveTo(1, 1);
-    printf("q - exit");
+    printf("q - exit\n\r");
+    printf("ROWS %d\n\r", config.rows);
+    printf("COLS %d\n\r", config.cols);
 
     moveTo(player->y, player->x);
     printf("@");
@@ -100,13 +110,13 @@ void draw_frame(Creature* player, char input, int* is_running) {
 // TERMIOS
 void disable_raw_mode() {
     printf("\x1b[?25h"); // enable cursor
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &config.original_termios);
 }
 
 void enable_raw_mode() {
-    tcgetattr(STDIN_FILENO, &original_termios);
+    tcgetattr(STDIN_FILENO, &config.original_termios);
 
-    struct termios raw = original_termios;
+    struct termios raw = config.original_termios;
     atexit(disable_raw_mode);
 
     raw.c_lflag &= ~(ECHO | ICANON);
@@ -120,4 +130,23 @@ void enable_raw_mode() {
 
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
+
+
+int get_winsize(int *rows, int *cols) {
+    struct winsize ws;
+    if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_row == 0) {
+        return -1;
+    }
+    *rows = ws.ws_row;
+    *cols = ws.ws_col;
+    return 0;
+}
+
+void init_game() {
+    enable_raw_mode();
+    if(get_winsize(&config.rows, &config.cols) != 0) {
+        printf("Game doesn't work in your terminal :(");
+        exit(1);
+    }
 }
