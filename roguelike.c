@@ -20,7 +20,8 @@ struct terminalConfig config;
 int debug = 0;
 
 Creature *initialize_player();
-void draw_frame(Creature *player, char input, int *is_running);
+void draw_frame(Creature *player);
+void process_input(Creature *player, char input, int *is_running);
 // TERMIOS
 void disable_raw_mode();
 void enable_raw_mode();
@@ -40,7 +41,8 @@ int main(int argc, char **argv) {
     // timeout for input could be also implemented using VMIN
     char input = 0;
     read(STDIN_FILENO, &input, 1);
-    draw_frame(player, input, &is_running);
+    process_input(player, input, &is_running);
+    draw_frame(player);
   }
 }
 
@@ -73,7 +75,7 @@ void moveX(int positions) {
 
 void moveTo(int row, int col) { printf("\x1b[%d;%df", row, col); }
 
-void draw_frame(Creature *player, char input, int *is_running) {
+void draw_frame(Creature *player) {
   printf("\x1b[2J");
   moveTo(1, 1);
   printf("q - exit\n\r");
@@ -92,6 +94,11 @@ void draw_frame(Creature *player, char input, int *is_running) {
 
   moveTo(player->y, player->x);
   printf("@");
+
+  fflush(stdout);
+}
+
+void process_input(Creature *player, char input, int *is_running) {
   switch (input) {
   case 'a':
     player->x -= 1;
