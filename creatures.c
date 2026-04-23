@@ -105,7 +105,6 @@ int delete_creature(CreatureList *list, Creature *creature) {
   if (to_delete->prev != NULL && to_delete->next != NULL) {
     to_delete->prev->next = to_delete->next;
     to_delete->next->prev = to_delete->prev;
-    free(to_delete);
   }
   // if is head
   if (to_delete->prev == NULL) {
