@@ -74,10 +74,20 @@ void draw_frame() {
   draw_line(0, 40);
   draw_line(1, 40);
 
-  Creature *player = entities->head->creature;
-
-  moveTo(player->y, player->x);
-  printf("@");
+  Node *creature_node = entities->head;
+  while (creature_node != NULL) {
+    Creature *creature = creature_node->creature;
+    moveTo(creature->y, creature->x);
+    switch (creature->type) {
+    case PLAYER:
+      printf("@");
+      break;
+    case SKELETON_ARCHER:
+      printf("A");
+      break;
+    }
+    creature_node = creature_node->next;
+  }
 
   fflush(stdout);
 }
