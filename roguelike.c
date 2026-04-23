@@ -1,15 +1,10 @@
+#include "creatures.c"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-#define DEFAULT_HEALTH 10000
-
-typedef struct {
-  char name[64];
-  int x, y, max_hp, hp, damage;
-} Creature;
 
 struct terminalConfig {
   int rows, cols;
@@ -18,10 +13,10 @@ struct terminalConfig {
 
 struct terminalConfig config;
 int debug = 0;
+CreatureList *entities;
 
-Creature *initialize_player();
-void draw_frame(Creature *player);
-void process_input(Creature *player, char input, int *is_running);
+void draw_frame();
+void process_input(char input, int *is_running);
 // TERMIOS
 void disable_raw_mode();
 void enable_raw_mode();
@@ -36,25 +31,12 @@ int main(int argc, char **argv) {
   init_game();
 
   int is_running = 1;
-  Creature *player = initialize_player();
   while (is_running) {
-    // timeout for input could be also implemented using VMIN
     char input = 0;
     read(STDIN_FILENO, &input, 1);
-    process_input(player, input, &is_running);
-    draw_frame(player);
+    process_input(input, &is_running);
+    draw_frame();
   }
-}
-
-Creature *initialize_player() {
-  Creature *player = malloc(sizeof(Creature));
-  player->max_hp = DEFAULT_HEALTH;
-  player->hp = DEFAULT_HEALTH;
-  player->x = 30;
-  player->y = 30;
-  player->damage = 35;
-
-  return player;
 }
 
 void moveY(int positions) {
@@ -75,7 +57,7 @@ void moveX(int positions) {
 
 void moveTo(int row, int col) { printf("\x1b[%d;%df", row, col); }
 
-void draw_frame(Creature *player) {
+void draw_frame() {
   printf("\x1b[2J");
   moveTo(1, 1);
   printf("q - exit\n\r");
@@ -92,13 +74,17 @@ void draw_frame(Creature *player) {
   draw_line(0, 40);
   draw_line(1, 40);
 
+  Creature *player = entities->head->creature;
+
   moveTo(player->y, player->x);
   printf("@");
 
   fflush(stdout);
 }
 
-void process_input(Creature *player, char input, int *is_running) {
+void process_input(char input, int *is_running) {
+  Creature *player = entities->head->creature;
+
   switch (input) {
   case 'a':
     player->x -= 1;
@@ -116,8 +102,6 @@ void process_input(Creature *player, char input, int *is_running) {
     *is_running = 0;
     break;
   }
-
-  fflush(stdout);
 }
 
 // TERMIOS
@@ -176,4 +160,8 @@ void init_game() {
     printf("Game doesn't work in your terminal :(");
     exit(1);
   }
+
+  entities = malloc(sizeof(CreatureList));
+  Creature *player = initialize_player();
+  add_creature(entities, player);
 }
