@@ -61,6 +61,7 @@ CreatureList *init_creatures() {
   head->prev = NULL;
 
   list->head = head;
+  list->tail = head;
 
   return list;
 }
