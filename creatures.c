@@ -124,7 +124,7 @@ Creature *get_creature(CreatureList *list, int idx) {
   Node *this = list->head;
   while (idx > 0 && this != NULL) {
     this = this->next;
-    idx += 1;
+    idx -= 1;
   }
   return this->creature;
 }
