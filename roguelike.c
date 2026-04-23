@@ -16,6 +16,7 @@ struct terminalConfig config;
 int debug = 0;
 CreatureList *entities;
 
+// GAME LOGIC
 void draw_frame(time_t prev_time);
 void process_input(char input, int *is_running);
 void process_spawning(double diff_time);
@@ -73,6 +74,7 @@ void draw_frame(time_t prev_time) {
   draw_line(1, 1);
   draw_line(1, config.rows - 1);
 
+  // Loop through all entities
   Node *creature_node = entities->head;
   while (creature_node != NULL) {
     Creature *creature = creature_node->creature;
@@ -102,30 +104,42 @@ void draw_frame(time_t prev_time) {
 void process_input(char input, int *is_running) {
   Creature *player = entities->head->creature;
 
+  int newx = player->x;
+  int newy = player->y;
   switch (input) {
   case 'a':
     if (player->x > 2) {
-      player->x -= 1;
+      newx = player->x - 1;
     }
     break;
   case 'd':
     if (player->x < config.cols - 2) {
-      player->x += 1;
+      newx = player->x + 1;
     }
     break;
   case 'w':
     if (player->y > 2) {
-      player->y -= 1;
+      newy = player->y - 1;
     }
     break;
   case 's':
     if (player->y < config.rows - 2) {
-      player->y += 1;
+      newy = player->y + 1;
     }
     break;
   case 'q':
     *is_running = 0;
     break;
+  }
+  Creature *enemy = at_coords(entities, newx, newy);
+  if (enemy != NULL) { // attack action here
+    enemy->hp -= player->damage;
+    if (enemy->hp <= 0) { // kill enemy
+      delete_creature(entities, enemy);
+    }
+  } else {
+    player->x = newx;
+    player->y = newy;
   }
 }
 
@@ -201,8 +215,8 @@ void process_spawning(double diff_time) {
   if (elapsed_time > 2.0) { // chance to spawn
     elapsed_time = 0.0;
     if (rand() % 4 == 0) {
-      int x = rand() % config.rows;
-      int y = rand() % config.cols;
+      int x = 2 + rand() % (config.cols - 2);
+      int y = 2 + rand() % (config.rows - 2);
       Creature *skeleton = initialize_skeleton(x, y);
       add_creature(entities, skeleton);
     }

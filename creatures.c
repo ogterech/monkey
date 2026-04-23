@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 #define DEFAULT_HEALTH 10000
 
@@ -40,7 +41,7 @@ Creature *initialize_player() {
 
 Creature *initialize_skeleton(int x, int y) {
   Creature *skele = malloc(sizeof(Creature));
-  int skele_hp = DEFAULT_HEALTH * 0.8;
+  int skele_hp = DEFAULT_HEALTH * 0.2;
   skele->max_hp = skele_hp;
   skele->hp = skele_hp;
   skele->x = x;
@@ -127,4 +128,15 @@ Creature *get_creature(CreatureList *list, int idx) {
     idx += 1;
   }
   return this->creature;
+}
+
+Creature *at_coords(CreatureList *list, int x, int y) {
+  Node *this = list->head;
+  while (this != NULL) {
+    if (this->creature->x == x && this->creature->y == y) {
+      return this->creature;
+    }
+    this = this->next;
+  }
+  return NULL;
 }
