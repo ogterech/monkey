@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 
 struct terminalConfig {
@@ -15,8 +16,9 @@ struct terminalConfig config;
 int debug = 0;
 CreatureList *entities;
 
-void draw_frame();
+void draw_frame(time_t prev_time);
 void process_input(char input, int *is_running);
+void process_spawning(double diff_time);
 // TERMIOS
 void disable_raw_mode();
 void enable_raw_mode();
@@ -31,11 +33,18 @@ int main(int argc, char **argv) {
   init_game();
 
   int is_running = 1;
+  time_t prev_time = time(NULL);
   while (is_running) {
+    time_t new_time = time(NULL);
+    double diff_time =
+        difftime(new_time, prev_time); // elapsed_time is in seconds
+    prev_time = new_time;
+
     char input = 0;
     read(STDIN_FILENO, &input, 1);
     process_input(input, &is_running);
-    draw_frame();
+    process_spawning(diff_time);
+    draw_frame(prev_time);
   }
 }
 
@@ -57,22 +66,12 @@ void moveX(int positions) {
 
 void moveTo(int row, int col) { printf("\x1b[%d;%df", row, col); }
 
-void draw_frame() {
+void draw_frame(time_t prev_time) {
   printf("\x1b[2J");
-  moveTo(1, 1);
-  printf("q - exit\n\r");
-  if (debug) {
-    printf("ROWS %d\n\r", config.rows);
-    printf("COLS %d\n\r", config.cols);
-  }
-  draw_line(0, 10);
-  draw_line(1, 10);
-
-  draw_line(0, 20);
-  draw_line(1, 20);
-
-  draw_line(0, 40);
-  draw_line(1, 40);
+  draw_line(0, 1);
+  draw_line(0, config.cols - 1);
+  draw_line(1, 1);
+  draw_line(1, config.rows - 1);
 
   Node *creature_node = entities->head;
   while (creature_node != NULL) {
@@ -89,6 +88,14 @@ void draw_frame() {
     creature_node = creature_node->next;
   }
 
+  moveTo(1, 1);
+  printf("q - exit\n\r");
+  if (debug) {
+    printf("ROWS %d\n\r", config.rows);
+    printf("COLS %d\n\r", config.cols);
+    printf("TIME %ld\n\r", prev_time);
+  }
+
   fflush(stdout);
 }
 
@@ -97,16 +104,24 @@ void process_input(char input, int *is_running) {
 
   switch (input) {
   case 'a':
-    player->x -= 1;
+    if (player->x > 2) {
+      player->x -= 1;
+    }
     break;
   case 'd':
-    player->x += 1;
+    if (player->x < config.cols - 2) {
+      player->x += 1;
+    }
     break;
   case 'w':
-    player->y -= 1;
+    if (player->y > 2) {
+      player->y -= 1;
+    }
     break;
   case 's':
-    player->y += 1;
+    if (player->y < config.rows - 2) {
+      player->y += 1;
+    }
     break;
   case 'q':
     *is_running = 0;
@@ -148,7 +163,7 @@ int get_winsize(int *rows, int *cols) {
   return 0;
 }
 
-// if rows == 0 then we vertical line
+// if rows == 0 then we draw vertical line otherwise horizontal
 void draw_line(int rows, int p) {
   // vertical
   if (rows == 0) {
@@ -174,4 +189,22 @@ void init_game() {
   entities = malloc(sizeof(CreatureList));
   Creature *player = initialize_player();
   add_creature(entities, player);
+
+  // seed the machine
+  srand(time(NULL));
+}
+
+void process_spawning(double diff_time) {
+  static double elapsed_time = 0.0;
+  elapsed_time += diff_time;
+
+  if (elapsed_time > 2.0) { // chance to spawn
+    elapsed_time = 0.0;
+    if (rand() % 4 == 0) {
+      int x = rand() % config.rows;
+      int y = rand() % config.cols;
+      Creature *skeleton = initialize_skeleton(x, y);
+      add_creature(entities, skeleton);
+    }
+  }
 }
