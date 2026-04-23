@@ -132,7 +132,7 @@ void process_input(char input, int *is_running) {
     break;
   }
   Creature *enemy = at_coords(entities, newx, newy);
-  if (enemy != NULL) { // attack action here
+  if (enemy != NULL && enemy != player) { // attack action here
     enemy->hp -= player->damage;
     if (enemy->hp <= 0) { // kill enemy
       delete_creature(entities, enemy);
