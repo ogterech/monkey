@@ -200,9 +200,7 @@ void init_game() {
     exit(1);
   }
 
-  entities = malloc(sizeof(CreatureList));
-  Creature *player = initialize_player();
-  add_creature(entities, player);
+  entities = init_creatures();
 
   // seed the machine
   srand(time(NULL));
