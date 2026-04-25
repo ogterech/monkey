@@ -74,9 +74,8 @@ void draw_frame(time_t prev_time) {
   draw_line(1, 1);
   draw_line(1, config.rows - 1);
 
-  // Loop through all entities
-  Node *creature_node = entities->head;
-  while (creature_node != NULL) {
+  Node *creature_node = entities->nil->next;
+  while (creature_node != entities->nil) {
     Creature *creature = creature_node->creature;
     moveTo(creature->y, creature->x);
     switch (creature->type) {
@@ -102,7 +101,7 @@ void draw_frame(time_t prev_time) {
 }
 
 void process_input(char input, int *is_running) {
-  Creature *player = entities->head->creature;
+  Creature *player = entities->nil->next->creature;
 
   int newx = player->x;
   int newy = player->y;
@@ -200,7 +199,8 @@ void init_game() {
     exit(1);
   }
 
-  entities = init_creatures();
+  entities = alloc_creatures();
+  add_creature(entities, initialize_player());
 
   // seed the machine
   srand(time(NULL));

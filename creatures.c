@@ -23,8 +23,7 @@ struct Node {
 };
 
 typedef struct {
-  Node *head; // Head should always point to player!
-  Node *tail;
+  Node *nil;
 } CreatureList;
 
 Creature *initialize_player() {
@@ -52,87 +51,59 @@ Creature *initialize_skeleton(int x, int y) {
   return skele;
 }
 
-CreatureList *init_creatures() {
+// initializes empty CreatureList
+CreatureList *alloc_creatures() {
   CreatureList *list = malloc(sizeof(CreatureList));
-
-  Node *head = malloc(sizeof(Node));
-  head->creature = initialize_player();
-  head->next = NULL;
-  head->prev = NULL;
-
-  list->head = head;
-  list->tail = head;
-
+  Node *nil = malloc(sizeof(Node));
+  nil->next = nil;
+  nil->prev = nil;
+  list->nil = nil;
   return list;
 }
 
 void add_creature(CreatureList *list, Creature *creature) {
   Node *new_node = malloc(sizeof(Node));
-
   new_node->creature = creature;
-  new_node->next = NULL;
-
-  // if no head available then creature becomes head
-  if (list->head == NULL) {
-    list->head = new_node;
-    list->tail = new_node;
-    return;
-  }
-  // if head available then add as tail
-  new_node->prev = list->tail;
-  list->tail->next = new_node;
-  list->tail = new_node;
+  new_node->prev = list->nil->prev;
+  new_node->next = list->nil;
+  list->nil->prev->next = new_node;
+  list->nil->prev = new_node;
 }
 
 Node *search_creature(CreatureList *list, Creature *creature) {
-  if (list->head->creature == creature) { // check if head is our creature
-    return list->head;
-  }
-  Node *current = list->head;
-  while (current != NULL && current->creature != creature) {
+  Node *current = list->nil->next;
+  while (current != list->nil && current->creature != creature) {
     current = current->next;
   }
+  if (current == list->nil)
+    return NULL;
   return current;
 }
 
-// returns -1 if didn't delete because creature not found
-// returns 0 if deleted
 int delete_creature(CreatureList *list, Creature *creature) {
   Node *to_delete = search_creature(list, creature);
-  if (to_delete == NULL) {
+  if (to_delete == NULL)
     return -1;
-  }
-  // if in middle
-  if (to_delete->prev != NULL && to_delete->next != NULL) {
-    to_delete->prev->next = to_delete->next;
-    to_delete->next->prev = to_delete->prev;
-  }
-  // if is head
-  if (to_delete->prev == NULL) {
-    list->head = to_delete->next;
-    list->head->prev = NULL;
-  }
-  // if is tail
-  if (to_delete->next == NULL) {
-    list->tail = to_delete->prev;
-    list->tail->next = NULL;
-  }
+  to_delete->prev->next = to_delete->next;
+  to_delete->next->prev = to_delete->prev;
   free(to_delete);
-  return 1;
+  return 0;
 }
 
 Creature *get_creature(CreatureList *list, int idx) {
-  Node *this = list->head;
-  while (idx > 0 && this != NULL) {
+  Node *this = list->nil->next;
+  while (idx > 0 && this != list->nil) {
     this = this->next;
     idx -= 1;
   }
+  if (this == list->nil)
+    return NULL;
   return this->creature;
 }
 
 Creature *at_coords(CreatureList *list, int x, int y) {
-  Node *this = list->head;
-  while (this != NULL) {
+  Node *this = list->nil->next;
+  while (this != list->nil) {
     if (this->creature->x == x && this->creature->y == y) {
       return this->creature;
     }
