@@ -1,4 +1,3 @@
-#include "creatures.c"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +5,7 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+#include "creatures.c"
 
 struct terminalConfig {
   int rows, cols;
@@ -14,20 +14,20 @@ struct terminalConfig {
 
 struct terminalConfig config;
 int debug = 0;
-CreatureList *entities;
+CreatureList* entities;
 
 // GAME LOGIC
 void draw_frame(time_t prev_time);
-void process_input(char input, int *is_running);
+void process_input(char input, int* is_running);
 void process_spawning(double diff_time);
 // TERMIOS
 void disable_raw_mode();
 void enable_raw_mode();
 void init_game();
-int get_winsize(int *rows, int *cols);
+int get_winsize(int* rows, int* cols);
 void draw_line(int rows, int p);
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   if (argc > 1 && strcmp("debug", argv[1]) == 0) {
     debug = 1;
   }
@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
   while (is_running) {
     time_t new_time = time(NULL);
     double diff_time =
-        difftime(new_time, prev_time); // elapsed_time is in seconds
+        difftime(new_time, prev_time);  // elapsed_time is in seconds
     prev_time = new_time;
 
     char input = 0;
@@ -65,7 +65,9 @@ void moveX(int positions) {
   }
 }
 
-void moveTo(int row, int col) { printf("\x1b[%d;%df", row, col); }
+void moveTo(int row, int col) {
+  printf("\x1b[%d;%df", row, col);
+}
 
 void draw_frame(time_t prev_time) {
   printf("\x1b[2J");
@@ -74,17 +76,17 @@ void draw_frame(time_t prev_time) {
   draw_line(1, 1);
   draw_line(1, config.rows - 1);
 
-  Node *creature_node = entities->nil->next;
+  Node* creature_node = entities->nil->next;
   while (creature_node != entities->nil) {
-    Creature *creature = creature_node->creature;
+    Creature* creature = creature_node->creature;
     moveTo(creature->y, creature->x);
     switch (creature->type) {
-    case PLAYER:
-      printf("@");
-      break;
-    case SKELETON_ARCHER:
-      printf("A");
-      break;
+      case PLAYER:
+        printf("@");
+        break;
+      case SKELETON_ARCHER:
+        printf("A");
+        break;
     }
     creature_node = creature_node->next;
   }
@@ -100,40 +102,40 @@ void draw_frame(time_t prev_time) {
   fflush(stdout);
 }
 
-void process_input(char input, int *is_running) {
-  Creature *player = entities->nil->next->creature;
+void process_input(char input, int* is_running) {
+  Creature* player = entities->nil->next->creature;
 
   int newx = player->x;
   int newy = player->y;
   switch (input) {
-  case 'a':
-    if (player->x > 2) {
-      newx = player->x - 1;
-    }
-    break;
-  case 'd':
-    if (player->x < config.cols - 2) {
-      newx = player->x + 1;
-    }
-    break;
-  case 'w':
-    if (player->y > 2) {
-      newy = player->y - 1;
-    }
-    break;
-  case 's':
-    if (player->y < config.rows - 2) {
-      newy = player->y + 1;
-    }
-    break;
-  case 'q':
-    *is_running = 0;
-    break;
+    case 'a':
+      if (player->x > 2) {
+        newx = player->x - 1;
+      }
+      break;
+    case 'd':
+      if (player->x < config.cols - 2) {
+        newx = player->x + 1;
+      }
+      break;
+    case 'w':
+      if (player->y > 2) {
+        newy = player->y - 1;
+      }
+      break;
+    case 's':
+      if (player->y < config.rows - 2) {
+        newy = player->y + 1;
+      }
+      break;
+    case 'q':
+      *is_running = 0;
+      break;
   }
-  Creature *enemy = at_coords(entities, newx, newy);
-  if (enemy != NULL && enemy != player) { // attack action here
+  Creature* enemy = at_coords(entities, newx, newy);
+  if (enemy != NULL && enemy != player) {  // attack action here
     enemy->hp -= player->damage;
-    if (enemy->hp <= 0) { // kill enemy
+    if (enemy->hp <= 0) {  // kill enemy
       delete_creature(entities, enemy);
     }
   } else {
@@ -144,7 +146,7 @@ void process_input(char input, int *is_running) {
 
 // TERMIOS
 void disable_raw_mode() {
-  printf("\x1b[?25h"); // enable cursor
+  printf("\x1b[?25h");  // enable cursor
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &config.original_termios);
 }
 
@@ -161,12 +163,12 @@ void enable_raw_mode() {
   raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
   raw.c_cc[VMIN] = 0;
   raw.c_cc[VTIME] = 1;
-  printf("\x1b[?25l"); // disable cursor
+  printf("\x1b[?25l");  // disable cursor
 
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
-int get_winsize(int *rows, int *cols) {
+int get_winsize(int* rows, int* cols) {
   struct winsize ws;
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_row == 0) {
     return -1;
@@ -184,7 +186,7 @@ void draw_line(int rows, int p) {
       moveTo(i, p);
       printf("|");
     }
-  } else { // horizontal
+  } else {  // horizontal
     for (int i = 1; i < config.cols - 1; i++) {
       moveTo(p, i);
       printf("–");
@@ -210,12 +212,12 @@ void process_spawning(double diff_time) {
   static double elapsed_time = 0.0;
   elapsed_time += diff_time;
 
-  if (elapsed_time > 2.0) { // chance to spawn
+  if (elapsed_time > 2.0) {  // chance to spawn
     elapsed_time = 0.0;
     if (rand() % 4 == 0) {
       int x = 2 + rand() % (config.cols - 2);
       int y = 2 + rand() % (config.rows - 2);
-      Creature *skeleton = initialize_skeleton(x, y);
+      Creature* skeleton = initialize_skeleton(x, y);
       add_creature(entities, skeleton);
     }
   }
