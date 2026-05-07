@@ -6,6 +6,7 @@
 typedef enum {
   PLAYER,
   SKELETON_ARCHER,
+  BANANA,
 } CreatureType;
 
 typedef struct {
@@ -49,6 +50,19 @@ Creature* initialize_skeleton(int x, int y) {
   skele->type = SKELETON_ARCHER;
 
   return skele;
+}
+
+Creature* initialize_banana(int x, int y) {
+  Creature* banana = malloc(sizeof(Creature));
+  banana->max_hp = 1;
+  banana->hp = 1;
+  banana->x = x;
+  banana->y = y;
+  banana->damage = 0;
+  banana->type = BANANA;
+  strcpy(banana->name, "Banana");
+
+  return banana;
 }
 
 // initializes empty CreatureList
@@ -110,4 +124,16 @@ Creature* at_coords(CreatureList* list, int x, int y) {
     this = this->next;
   }
   return NULL;
+}
+
+int count_bananas(CreatureList* list) {
+  int count = 0;
+  Node* current = list->nil->next;
+  while (current != list->nil) {
+    if (current->creature->type == BANANA) {
+      count++;
+    }
+    current = current->next;
+  }
+  return count;
 }

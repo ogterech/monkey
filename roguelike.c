@@ -16,6 +16,15 @@ struct terminalConfig config;
 int debug = 0;
 CreatureList* entities;
 
+typedef struct {
+  int score;
+  int skeletons_killed;
+  int bananas_eaten;
+  time_t game_start;
+} GameStats;
+
+GameStats stats = {0, 0, 0, 0};
+
 // GAME LOGIC
 void draw_frame(time_t prev_time);
 void process_input(char input, int* is_running);
@@ -39,6 +48,12 @@ int main(int argc, char** argv) {
     time_t new_time = time(NULL);
     double diff_time =
         difftime(new_time, prev_time);  // elapsed_time is in seconds
+
+    // Award 1 point per second survived
+    if (new_time > prev_time) {
+      stats.score += (int)(new_time - prev_time);
+    }
+
     prev_time = new_time;
 
     char input = 0;
@@ -87,12 +102,24 @@ void draw_frame(time_t prev_time) {
       case SKELETON_ARCHER:
         printf("A");
         break;
+      case BANANA:
+        printf("b");
+        break;
     }
     creature_node = creature_node->next;
   }
 
   moveTo(1, 1);
   printf("q - exit\n\r");
+
+  // Display score and statistics
+  int time_survived = (int)difftime(prev_time, stats.game_start);
+  moveTo(2, 1);
+  printf("Score: %d | Time: %ds | Bananas: %d | Kills: %d\n\r", stats.score,
+         time_survived, stats.bananas_eaten, stats.skeletons_killed);
+
+  printf("Health: %d\n\r", entities->nil->next->creature->hp);
+
   if (debug) {
     printf("ROWS %d\n\r", config.rows);
     printf("COLS %d\n\r", config.cols);
@@ -132,11 +159,29 @@ void process_input(char input, int* is_running) {
       *is_running = 0;
       break;
   }
-  Creature* enemy = at_coords(entities, newx, newy);
-  if (enemy != NULL && enemy != player) {  // attack action here
-    enemy->hp -= player->damage;
-    if (enemy->hp <= 0) {  // kill enemy
-      delete_creature(entities, enemy);
+  Creature* target = at_coords(entities, newx, newy);
+  if (target != NULL && target != player) {
+    if (target->type == BANANA) {
+      // Collect banana: heal and score
+      if (player->hp < player->max_hp) {
+        player->hp += 100;
+        if (player->hp > player->max_hp) {
+          player->hp = player->max_hp;
+        }
+      }
+      stats.score += 5;
+      stats.bananas_eaten++;
+      delete_creature(entities, target);
+      player->x = newx;
+      player->y = newy;
+    } else if (target->type == SKELETON_ARCHER) {
+      // Attack enemy
+      target->hp -= player->damage;
+      if (target->hp <= 0) {
+        stats.score += 30;
+        stats.skeletons_killed++;
+        delete_creature(entities, target);
+      }
     }
   } else {
     player->x = newx;
@@ -204,6 +249,12 @@ void init_game() {
   entities = alloc_creatures();
   add_creature(entities, initialize_player());
 
+  // Initialize game stats
+  stats.score = 0;
+  stats.skeletons_killed = 0;
+  stats.bananas_eaten = 0;
+  stats.game_start = time(NULL);
+
   // seed the machine
   srand(time(NULL));
 }
@@ -214,11 +265,21 @@ void process_spawning(double diff_time) {
 
   if (elapsed_time > 2.0) {  // chance to spawn
     elapsed_time = 0.0;
+
+    // Spawn skeletons: 1 in 4 chance
     if (rand() % 4 == 0) {
       int x = 2 + rand() % (config.cols - 2);
       int y = 2 + rand() % (config.rows - 2);
       Creature* skeleton = initialize_skeleton(x, y);
       add_creature(entities, skeleton);
+    }
+
+    // Spawn bananas: 1 in 8 chance, max 5
+    if (rand() % 8 == 0 && count_bananas(entities) < 5) {
+      int x = 2 + rand() % (config.cols - 2);
+      int y = 2 + rand() % (config.rows - 2);
+      Creature* banana = initialize_banana(x, y);
+      add_creature(entities, banana);
     }
   }
 }
