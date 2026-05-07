@@ -6,6 +6,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "creatures.c"
+#include "projectiles.c"
 
 struct terminalConfig {
   int rows, cols;
@@ -15,6 +16,7 @@ struct terminalConfig {
 struct terminalConfig config;
 int debug = 0;
 CreatureList* entities;
+ProjectileList* projectiles;
 
 typedef struct {
   int score;
@@ -29,12 +31,15 @@ GameStats stats = {0, 0, 0, 0};
 void draw_frame(time_t prev_time);
 void process_input(char input, int* is_running);
 void process_spawning(double diff_time);
+void process_creatures(time_t current_time);
+void process_projectiles(int rows, int cols);
 // TERMIOS
 void disable_raw_mode();
 void enable_raw_mode();
 void init_game();
 int get_winsize(int* rows, int* cols);
 void draw_line(int rows, int p);
+void moveTo(int row, int col);
 
 int main(int argc, char** argv) {
   if (argc > 1 && strcmp("debug", argv[1]) == 0) {
@@ -44,6 +49,7 @@ int main(int argc, char** argv) {
 
   int is_running = 1;
   time_t prev_time = time(NULL);
+  Creature* player = entities->nil->next->creature;
   while (is_running) {
     time_t new_time = time(NULL);
     double diff_time =
@@ -60,7 +66,18 @@ int main(int argc, char** argv) {
     read(STDIN_FILENO, &input, 1);
     process_input(input, &is_running);
     process_spawning(diff_time);
+    process_creatures(new_time);
+    process_projectiles(config.rows, config.cols);
     draw_frame(prev_time);
+
+    // Check game over
+    if (player->hp <= 0) {
+      is_running = 0;
+      printf("\x1b[2J");
+      moveTo(config.rows / 2, config.cols / 2 - 10);
+      printf("GAME OVER! Final Score: %d\n\r", stats.score);
+      sleep(2);
+    }
   }
 }
 
@@ -107,6 +124,15 @@ void draw_frame(time_t prev_time) {
         break;
     }
     creature_node = creature_node->next;
+  }
+
+  // Draw projectiles (arrows)
+  PNode* proj_node = projectiles->nil->next;
+  while (proj_node != projectiles->nil) {
+    Projectile* proj = proj_node->projectile;
+    moveTo(proj->y, proj->x);
+    printf("%c", get_arrow_char(proj->vx, proj->vy));
+    proj_node = proj_node->next;
   }
 
   moveTo(1, 1);
@@ -160,6 +186,14 @@ void process_input(char input, int* is_running) {
       break;
   }
   Creature* target = at_coords(entities, newx, newy);
+  Projectile* arrow = projectile_at_coords(projectiles, newx, newy);
+
+  // Check if player steps into an arrow
+  if (arrow != NULL) {
+    player->hp -= arrow->damage;
+    delete_projectile(projectiles, arrow);
+  }
+
   if (target != NULL && target != player) {
     if (target->type == BANANA) {
       // Collect banana: heal and score
@@ -247,6 +281,7 @@ void init_game() {
   }
 
   entities = alloc_creatures();
+  projectiles = alloc_projectiles();
   add_creature(entities, initialize_player());
 
   // Initialize game stats
@@ -280,6 +315,120 @@ void process_spawning(double diff_time) {
       int y = 2 + rand() % (config.rows - 2);
       Creature* banana = initialize_banana(x, y);
       add_creature(entities, banana);
+    }
+  }
+}
+
+// Process archer movement and shooting
+void process_creatures(time_t current_time) {
+  Creature* player = entities->nil->next->creature;
+  if (player == NULL)
+    return;
+
+  Node* creature_node = entities->nil->next;
+  while (creature_node != entities->nil) {
+    Creature* creature = creature_node->creature;
+    creature_node = creature_node->next;  // Advance before potential deletion
+
+    if (creature->type != SKELETON_ARCHER)
+      continue;
+
+    int dist_sq = creature_distance_squared(creature, player);
+    int can_shoot = can_archer_shoot(creature, current_time);
+
+    int dx = player->x - creature->x;
+    int dy = player->y - creature->y;
+    int vx = (dx > 0) - (dx < 0);
+    int vy = (dy > 0) - (dy < 0);
+
+    int can_shoot_direction = (vx != 0 || vy != 0);
+
+    if (can_shoot && can_shoot_direction) {
+      ProjectileDirection dir =
+          calculate_direction(creature->x, creature->y, player->x, player->y);
+      Projectile* arrow =
+          create_arrow(creature->x, creature->y, dir, creature->damage);
+      add_projectile(projectiles, arrow);
+      creature->last_skill_use = current_time;
+    } else if (dist_sq <= 400) {
+      // 50% chance to flee, 50% random walk
+      if (rand() % 2 == 0) {
+        move_archer_away(creature, player, config.rows, config.cols);
+      } else {
+        move_archer_random(creature, config.rows, config.cols);
+      }
+    } else {
+      // Random walk when far away
+      move_archer_random(creature, config.rows, config.cols);
+    }
+
+    // Check if archer moved into player (collision)
+    if (creature->x == player->x && creature->y == player->y) {
+      player->hp -= creature->damage;
+    }
+  }
+}
+
+// Process projectile movement and collisions
+void process_projectiles(int rows, int cols) {
+  Creature* player = entities->nil->next->creature;
+  if (player == NULL)
+    return;
+
+  PNode* proj_node = projectiles->nil->next;
+  while (proj_node != projectiles->nil) {
+    Projectile* proj = proj_node->projectile;
+    proj_node = proj_node->next;  // advance first, potential deletion
+
+    int new_x = proj->x + proj->vx;
+    int new_y = proj->y + proj->vy;
+
+    // boundary collision
+    if (new_x <= 1 || new_x >= cols - 1 || new_y <= 1 || new_y >= rows - 1) {
+      // 50% chance to break, 50% chance to ricochet
+      if (rand() % 2 == 0) {
+        // break - delete arrow
+        delete_projectile(projectiles, proj);
+        continue;
+      } else {
+        // ricochet
+        if (new_x <= 1 || new_x >= cols - 1) {
+          proj->vx = -proj->vx;
+        }
+        if (new_y <= 1 || new_y >= rows - 1) {
+          proj->vy = -proj->vy;
+        }
+        continue;
+      }
+    }
+
+    // damage player
+    if (new_x == player->x && new_y == player->y) {
+      player->hp -= proj->damage;
+      delete_projectile(projectiles, proj);
+      continue;
+    }
+
+    // damage archer
+    Node* creature_node = at_coords_node(entities, new_x, new_y);
+    if (creature_node != NULL) {
+      Creature* creature = creature_node->creature;
+      if (creature->type == SKELETON_ARCHER && new_x == creature->x &&
+          new_y == creature->y) {
+        creature->hp -= proj->damage;
+        if (creature->hp <= 0) {
+          stats.skeletons_killed++;
+          stats.score += 30;
+          delete_creature(entities, creature);
+        }
+        delete_projectile(projectiles, proj);
+      }
+    }
+
+    // If not deleted, update position
+    if (search_projectile(projectiles, proj) != NULL) {
+      proj->x = new_x;
+      proj->y = new_y;
     }
   }
 }
