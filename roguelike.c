@@ -1,3 +1,5 @@
+#include "creatures.c"
+#include "projectiles.c"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,18 +7,18 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
-#include "creatures.c"
-#include "projectiles.c"
 
-struct terminalConfig {
+struct gameConfig {
   int rows, cols;
   struct termios original_termios;
 };
 
-struct terminalConfig config;
+struct gameConfig config;
+int rows = 0;
+int cols = 0;
 int debug = 0;
-CreatureList* entities;
-ProjectileList* projectiles;
+CreatureList *entities;
+ProjectileList *projectiles;
 
 typedef struct {
   int score;
@@ -29,7 +31,7 @@ GameStats stats = {0, 0, 0, 0};
 
 // GAME LOGIC
 void draw_frame(time_t prev_time);
-void process_input(char input, int* is_running);
+void process_input(char input, int *is_running);
 void process_spawning(double diff_time);
 void process_creatures(time_t current_time);
 void process_projectiles(int rows, int cols);
@@ -37,23 +39,32 @@ void process_projectiles(int rows, int cols);
 void disable_raw_mode();
 void enable_raw_mode();
 void init_game();
-int get_winsize(int* rows, int* cols);
+int get_winsize(int *rows, int *cols);
 void draw_line(int rows, int p);
 void moveTo(int row, int col);
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
+  // cli debug flag
   if (argc > 1 && strcmp("debug", argv[1]) == 0) {
     debug = 1;
+  }
+  // cli rows, cols
+  if (argc > 3 && debug == 1) {
+    rows = atoi(argv[2]);
+    cols = atoi(argv[3]);
+  } else if (argc > 2 && debug == 0) {
+    rows = atoi(argv[1]);
+    cols = atoi(argv[2]);
   }
   init_game();
 
   int is_running = 1;
   time_t prev_time = time(NULL);
-  Creature* player = entities->nil->next->creature;
+  Creature *player = entities->nil->next->creature;
   while (is_running) {
     time_t new_time = time(NULL);
     double diff_time =
-        difftime(new_time, prev_time);  // elapsed_time is in seconds
+        difftime(new_time, prev_time); // elapsed_time is in seconds
 
     // Award 1 point per second survived
     if (new_time > prev_time) {
@@ -97,9 +108,7 @@ void moveX(int positions) {
   }
 }
 
-void moveTo(int row, int col) {
-  printf("\x1b[%d;%df", row, col);
-}
+void moveTo(int row, int col) { printf("\x1b[%d;%df", row, col); }
 
 void draw_frame(time_t prev_time) {
   printf("\x1b[2J");
@@ -108,28 +117,28 @@ void draw_frame(time_t prev_time) {
   draw_line(1, 1);
   draw_line(1, config.rows - 1);
 
-  Node* creature_node = entities->nil->next;
+  Node *creature_node = entities->nil->next;
   while (creature_node != entities->nil) {
-    Creature* creature = creature_node->creature;
+    Creature *creature = creature_node->creature;
     moveTo(creature->y, creature->x);
     switch (creature->type) {
-      case PLAYER:
-        printf("@");
-        break;
-      case SKELETON_ARCHER:
-        printf("A");
-        break;
-      case BANANA:
-        printf("b");
-        break;
+    case PLAYER:
+      printf("@");
+      break;
+    case SKELETON_ARCHER:
+      printf("A");
+      break;
+    case BANANA:
+      printf("b");
+      break;
     }
     creature_node = creature_node->next;
   }
 
-  // Draw projectiles (arrows)
-  PNode* proj_node = projectiles->nil->next;
+  // draw projectiles
+  PNode *proj_node = projectiles->nil->next;
   while (proj_node != projectiles->nil) {
-    Projectile* proj = proj_node->projectile;
+    Projectile *proj = proj_node->projectile;
     moveTo(proj->y, proj->x);
     printf("%c", get_arrow_char(proj->vx, proj->vy));
     proj_node = proj_node->next;
@@ -138,7 +147,7 @@ void draw_frame(time_t prev_time) {
   moveTo(1, 1);
   printf("q - exit\n\r");
 
-  // Display score and statistics
+  // display score and statistics
   int time_survived = (int)difftime(prev_time, stats.game_start);
   moveTo(2, 1);
   printf("Score: %d | Time: %ds | Bananas: %d | Kills: %d\n\r", stats.score,
@@ -155,38 +164,38 @@ void draw_frame(time_t prev_time) {
   fflush(stdout);
 }
 
-void process_input(char input, int* is_running) {
-  Creature* player = entities->nil->next->creature;
+void process_input(char input, int *is_running) {
+  Creature *player = entities->nil->next->creature;
 
   int newx = player->x;
   int newy = player->y;
   switch (input) {
-    case 'a':
-      if (player->x > 2) {
-        newx = player->x - 1;
-      }
-      break;
-    case 'd':
-      if (player->x < config.cols - 2) {
-        newx = player->x + 1;
-      }
-      break;
-    case 'w':
-      if (player->y > 2) {
-        newy = player->y - 1;
-      }
-      break;
-    case 's':
-      if (player->y < config.rows - 2) {
-        newy = player->y + 1;
-      }
-      break;
-    case 'q':
-      *is_running = 0;
-      break;
+  case 'a':
+    if (player->x > 2) {
+      newx = player->x - 1;
+    }
+    break;
+  case 'd':
+    if (player->x < config.cols - 2) {
+      newx = player->x + 1;
+    }
+    break;
+  case 'w':
+    if (player->y > 2) {
+      newy = player->y - 1;
+    }
+    break;
+  case 's':
+    if (player->y < config.rows - 2) {
+      newy = player->y + 1;
+    }
+    break;
+  case 'q':
+    *is_running = 0;
+    break;
   }
-  Creature* target = at_coords(entities, newx, newy);
-  Projectile* arrow = projectile_at_coords(projectiles, newx, newy);
+  Creature *target = at_coords(entities, newx, newy);
+  Projectile *arrow = projectile_at_coords(projectiles, newx, newy);
 
   // Check if player steps into an arrow
   if (arrow != NULL) {
@@ -225,7 +234,7 @@ void process_input(char input, int* is_running) {
 
 // TERMIOS
 void disable_raw_mode() {
-  printf("\x1b[?25h");  // enable cursor
+  printf("\x1b[?25h"); // enable cursor
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &config.original_termios);
 }
 
@@ -242,12 +251,12 @@ void enable_raw_mode() {
   raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
   raw.c_cc[VMIN] = 0;
   raw.c_cc[VTIME] = 1;
-  printf("\x1b[?25l");  // disable cursor
+  printf("\x1b[?25l"); // disable cursor
 
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
-int get_winsize(int* rows, int* cols) {
+int get_winsize(int *rows, int *cols) {
   struct winsize ws;
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_row == 0) {
     return -1;
@@ -265,7 +274,7 @@ void draw_line(int rows, int p) {
       moveTo(i, p);
       printf("|");
     }
-  } else {  // horizontal
+  } else { // horizontal
     for (int i = 1; i < config.cols - 1; i++) {
       moveTo(p, i);
       printf("–");
@@ -275,14 +284,19 @@ void draw_line(int rows, int p) {
 
 void init_game() {
   enable_raw_mode();
-  if (get_winsize(&config.rows, &config.cols) != 0) {
-    printf("Game doesn't work in your terminal :(");
-    exit(1);
+  if (rows == 0 && cols == 0) {
+    if (get_winsize(&config.rows, &config.cols) != 0) {
+      printf("Game doesn't work in your terminal :(");
+      exit(1);
+    }
+  } else {
+    config.rows = rows;
+    config.cols = cols;
   }
 
   entities = alloc_creatures();
   projectiles = alloc_projectiles();
-  add_creature(entities, initialize_player());
+  add_creature(entities, initialize_player(config.rows / 2, config.cols / 2));
 
   // Initialize game stats
   stats.score = 0;
@@ -298,14 +312,14 @@ void process_spawning(double diff_time) {
   static double elapsed_time = 0.0;
   elapsed_time += diff_time;
 
-  if (elapsed_time > 2.0) {  // chance to spawn
+  if (elapsed_time > 2.0) { // chance to spawn
     elapsed_time = 0.0;
 
     // Spawn skeletons: 1 in 4 chance
     if (rand() % 4 == 0) {
       int x = 2 + rand() % (config.cols - 2);
       int y = 2 + rand() % (config.rows - 2);
-      Creature* skeleton = initialize_skeleton(x, y);
+      Creature *skeleton = initialize_skeleton(x, y);
       add_creature(entities, skeleton);
     }
 
@@ -313,7 +327,7 @@ void process_spawning(double diff_time) {
     if (rand() % 8 == 0 && count_bananas(entities) < 5) {
       int x = 2 + rand() % (config.cols - 2);
       int y = 2 + rand() % (config.rows - 2);
-      Creature* banana = initialize_banana(x, y);
+      Creature *banana = initialize_banana(x, y);
       add_creature(entities, banana);
     }
   }
@@ -321,14 +335,14 @@ void process_spawning(double diff_time) {
 
 // Process archer movement and shooting
 void process_creatures(time_t current_time) {
-  Creature* player = entities->nil->next->creature;
+  Creature *player = entities->nil->next->creature;
   if (player == NULL)
     return;
 
-  Node* creature_node = entities->nil->next;
+  Node *creature_node = entities->nil->next;
   while (creature_node != entities->nil) {
-    Creature* creature = creature_node->creature;
-    creature_node = creature_node->next;  // Advance before potential deletion
+    Creature *creature = creature_node->creature;
+    creature_node = creature_node->next; // Advance before potential deletion
 
     if (creature->type != SKELETON_ARCHER)
       continue;
@@ -346,7 +360,7 @@ void process_creatures(time_t current_time) {
     if (can_shoot && can_shoot_direction) {
       ProjectileDirection dir =
           calculate_direction(creature->x, creature->y, player->x, player->y);
-      Projectile* arrow =
+      Projectile *arrow =
           create_arrow(creature->x, creature->y, dir, creature->damage);
       add_projectile(projectiles, arrow);
       creature->last_skill_use = current_time;
@@ -358,11 +372,11 @@ void process_creatures(time_t current_time) {
         move_archer_random(creature, config.rows, config.cols);
       }
     } else {
-      // Random walk when far away
+      // random walk when far away
       move_archer_random(creature, config.rows, config.cols);
     }
 
-    // Check if archer moved into player (collision)
+    // check if archer moved into player
     if (creature->x == player->x && creature->y == player->y) {
       player->hp -= creature->damage;
     }
@@ -371,14 +385,14 @@ void process_creatures(time_t current_time) {
 
 // Process projectile movement and collisions
 void process_projectiles(int rows, int cols) {
-  Creature* player = entities->nil->next->creature;
+  Creature *player = entities->nil->next->creature;
   if (player == NULL)
     return;
 
-  PNode* proj_node = projectiles->nil->next;
+  PNode *proj_node = projectiles->nil->next;
   while (proj_node != projectiles->nil) {
-    Projectile* proj = proj_node->projectile;
-    proj_node = proj_node->next;  // advance first, potential deletion
+    Projectile *proj = proj_node->projectile;
+    proj_node = proj_node->next; // advance first, potential deletion
 
     int new_x = proj->x + proj->vx;
     int new_y = proj->y + proj->vy;
@@ -410,9 +424,9 @@ void process_projectiles(int rows, int cols) {
     }
 
     // damage archer
-    Node* creature_node = at_coords_node(entities, new_x, new_y);
+    Node *creature_node = at_coords_node(entities, new_x, new_y);
     if (creature_node != NULL) {
-      Creature* creature = creature_node->creature;
+      Creature *creature = creature_node->creature;
       if (creature->type == SKELETON_ARCHER && new_x == creature->x &&
           new_y == creature->y) {
         creature->hp -= proj->damage;

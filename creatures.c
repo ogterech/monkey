@@ -14,27 +14,27 @@ typedef struct {
   char name[64];
   int x, y, max_hp, hp, damage;
   CreatureType type;
-  time_t last_skill_use;  // For archers: track when they last shot
+  time_t last_skill_use; // For archers: track when they last shot
 } Creature;
 
 // Doubly Linked list for creatures
 typedef struct Node Node;
 struct Node {
-  Node* next;
-  Node* prev;
-  Creature* creature;
+  Node *next;
+  Node *prev;
+  Creature *creature;
 };
 
 typedef struct {
-  Node* nil;  // nil->next->creature is always player
+  Node *nil; // nil->next->creature is always player
 } CreatureList;
 
-Creature* initialize_player() {
-  Creature* player = malloc(sizeof(Creature));
+Creature *initialize_player(int x, int y) {
+  Creature *player = malloc(sizeof(Creature));
   player->max_hp = DEFAULT_HEALTH;
   player->hp = DEFAULT_HEALTH;
-  player->x = 30;
-  player->y = 30;
+  player->x = x;
+  player->y = y;
   player->damage = 35;
   player->type = PLAYER;
   player->last_skill_use = 0;
@@ -43,8 +43,8 @@ Creature* initialize_player() {
   return player;
 }
 
-Creature* initialize_skeleton(int x, int y) {
-  Creature* skele = malloc(sizeof(Creature));
+Creature *initialize_skeleton(int x, int y) {
+  Creature *skele = malloc(sizeof(Creature));
   int skele_hp = DEFAULT_HEALTH * 0.2;
   skele->max_hp = skele_hp;
   skele->hp = skele_hp;
@@ -58,8 +58,8 @@ Creature* initialize_skeleton(int x, int y) {
   return skele;
 }
 
-Creature* initialize_banana(int x, int y) {
-  Creature* banana = malloc(sizeof(Creature));
+Creature *initialize_banana(int x, int y) {
+  Creature *banana = malloc(sizeof(Creature));
   banana->max_hp = 1;
   banana->hp = 1;
   banana->x = x;
@@ -73,17 +73,17 @@ Creature* initialize_banana(int x, int y) {
 }
 
 // initializes empty CreatureList
-CreatureList* alloc_creatures() {
-  CreatureList* list = malloc(sizeof(CreatureList));
-  Node* nil = malloc(sizeof(Node));
+CreatureList *alloc_creatures() {
+  CreatureList *list = malloc(sizeof(CreatureList));
+  Node *nil = malloc(sizeof(Node));
   nil->next = nil;
   nil->prev = nil;
   list->nil = nil;
   return list;
 }
 
-void add_creature(CreatureList* list, Creature* creature) {
-  Node* new_node = malloc(sizeof(Node));
+void add_creature(CreatureList *list, Creature *creature) {
+  Node *new_node = malloc(sizeof(Node));
   new_node->creature = creature;
   new_node->prev = list->nil->prev;
   new_node->next = list->nil;
@@ -91,8 +91,8 @@ void add_creature(CreatureList* list, Creature* creature) {
   list->nil->prev = new_node;
 }
 
-Node* search_creature(CreatureList* list, Creature* creature) {
-  Node* current = list->nil->next;
+Node *search_creature(CreatureList *list, Creature *creature) {
+  Node *current = list->nil->next;
   while (current != list->nil && current->creature != creature) {
     current = current->next;
   }
@@ -101,8 +101,8 @@ Node* search_creature(CreatureList* list, Creature* creature) {
   return current;
 }
 
-int delete_creature(CreatureList* list, Creature* creature) {
-  Node* to_delete = search_creature(list, creature);
+int delete_creature(CreatureList *list, Creature *creature) {
+  Node *to_delete = search_creature(list, creature);
   if (to_delete == NULL)
     return -1;
   to_delete->prev->next = to_delete->next;
@@ -111,8 +111,8 @@ int delete_creature(CreatureList* list, Creature* creature) {
   return 0;
 }
 
-Creature* get_creature(CreatureList* list, int idx) {
-  Node* this = list->nil->next;
+Creature *get_creature(CreatureList *list, int idx) {
+  Node *this = list->nil->next;
   while (idx > 0 && this != list->nil) {
     this = this->next;
     idx -= 1;
@@ -122,8 +122,8 @@ Creature* get_creature(CreatureList* list, int idx) {
   return this->creature;
 }
 
-Node* at_coords_node(CreatureList* list, int x, int y) {
-  Node* this = list->nil->next;
+Node *at_coords_node(CreatureList *list, int x, int y) {
+  Node *this = list->nil->next;
   while (this != list->nil) {
     if (this->creature->x == x && this->creature->y == y) {
       return this;
@@ -133,16 +133,16 @@ Node* at_coords_node(CreatureList* list, int x, int y) {
   return NULL;
 }
 
-Creature* at_coords(CreatureList* list, int x, int y) {
-  Node* node = at_coords_node(list, x, y);
+Creature *at_coords(CreatureList *list, int x, int y) {
+  Node *node = at_coords_node(list, x, y);
   if (node == NULL)
     return NULL;
   return node->creature;
 }
 
-int count_bananas(CreatureList* list) {
+int count_bananas(CreatureList *list) {
   int count = 0;
-  Node* current = list->nil->next;
+  Node *current = list->nil->next;
   while (current != list->nil) {
     if (current->creature->type == BANANA) {
       count++;
@@ -153,17 +153,17 @@ int count_bananas(CreatureList* list) {
 }
 
 // Calculate distance squared between two creatures
-int creature_distance_squared(Creature* c1, Creature* c2) {
+int creature_distance_squared(Creature *c1, Creature *c2) {
   int dx = c2->x - c1->x;
   int dy = c2->y - c1->y;
   return dx * dx + dy * dy;
 }
 
 // Move archer randomly (random walk)
-void move_archer_random(Creature* archer, int rows, int cols) {
+void move_archer_random(Creature *archer, int rows, int cols) {
   // 8 possible directions
-  int dx = (rand() % 3) - 1;  // -1, 0, 1
-  int dy = (rand() % 3) - 1;  // -1, 0, 1
+  int dx = (rand() % 3) - 1; // -1, 0, 1
+  int dy = (rand() % 3) - 1; // -1, 0, 1
 
   // Ensure we don't stand still
   while (dx == 0 && dy == 0) {
@@ -182,8 +182,8 @@ void move_archer_random(Creature* archer, int rows, int cols) {
 }
 
 // Move archer away from player (flee behavior)
-void move_archer_away(Creature* archer, Creature* player, int rows, int cols) {
-  int dx = archer->x - player->x;  // Opposite direction from player
+void move_archer_away(Creature *archer, Creature *player, int rows, int cols) {
+  int dx = archer->x - player->x; // Opposite direction from player
   int dy = archer->y - player->y;
 
   // Normalize to -1, 0, or 1
@@ -201,6 +201,6 @@ void move_archer_away(Creature* archer, Creature* player, int rows, int cols) {
 }
 
 // Check if archer can shoot (10 second cooldown)
-int can_archer_shoot(Creature* archer, time_t current_time) {
+int can_archer_shoot(Creature *archer, time_t current_time) {
   return (current_time - archer->last_skill_use) >= 10;
 }
